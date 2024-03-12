@@ -1,0 +1,139 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Importation des packages nécessaire pour ce projet
+
+```{r}
+library(pdftools)
+library(stringr)
+library(tidyverse)
+```
+
+## Lecture du PDF 
+
+```{r}
+data <- readxl::read_excel("~/PFE/Base_de_données_ICECCME 2023.xlsx")
+pdf <- pdf_text("../PFE/proceedings (1).pdf")
+pdf_data <- pdf_data("../PFE/proceedings (1).pdf")
+```
+
+## Extraction des numéros de pages du début de chaque article
+
+L'expression régulière signifie : tous les chaines de caratères qui commence par une ou deux espaces suivies par un nombres et qui se termine par un retoure á la ligne.
+
+```{r}
+v <- vector()
+numbers <- function(){
+  
+  for (i in 2:20) {
+    t <- suppressWarnings(expr =  str_extract_all(pdf[i], "\\s{1,2}[0-9]+\\n") %>% str_extract_all("\\s{1,2}[0-9]+"))
+    v <- c(v, as.numeric(as_vector(t)))
+  }
+  return(v)
+}
+v <- numbers()
+v <- v[2:length(v)]
+v <- v+ 20
+v[2:10]
+```
+
+## Extraction des addresses mail des auteurs
+
+Ce expression régulier est celui de tous adress mail en r
+
+```{r}
+mail_ <- vector()
+motif_email <- "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b" 
+mail <- function(){
+  for (i in v) {
+    t <- str_extract_all(pdf[i], motif_email)[[1]]
+    u <- ""
+    for(i in 1:length(t)){
+      u <- paste(u, t[i])
+    }
+    mail_ <- c(mail_, u)
+  }
+  return(mail_)
+}
+m <- mail()
+m[4:12]
+```
+
+## Dans les données sous forme de tableau tibble on recupère seulement les pages debut des articles
+
+```{r}
+article <- pdf_data[v]
+```
+
+## Récupération du titre des articles
+
+```{r}
+tit <- vector()
+title_ <- function(){
+  for (i in 1:length(article)) {
+    text <- article[[i]][article[[i]]$height == as.numeric(max(article[[i]]$height)), "text"]
+    k <- ""
+    a = as.vector(text["text"])
+    k = ""
+    for (l in a$text) {
+        k <- paste(k, l)
+      }
+    
+    tit<- c(tit, k)
+  }
+  return(tit)
+}
+t <- title_()
+t[2:12]
+```
+
+## Construction de la base de données
+
+```{r}
+y <- tibble(
+  numero = numeric(),
+  titre = character(),
+  mail = character()
+)
+for ( i in 1:length(t)) {
+  y[i,"numero"] = i
+  y[i,"titre"] = t[i]
+  y[i,"mail"] = m[i]
+}
+y[4:7, ]
+view(y)
+```
+
+## Quelques arrangement de la base de données car certains resultat sont mal présentés
+
+```{r}
+y[7, "titre"] <- "An Interdisciplinary Perspective On Mis/Disinformation Control"
+y[7, "mail"] <- "caramancionk@uwstout.edu"
+y[7, "numer0"] <- 7
+y <- y[, c("titre", "numero","mail")]
+y$mail <- str_replace(y$mail, ",", "")
+y[17, "titre"] <- "Speed Estimation of Vehicles using Monocular Cameras"
+y[108, "titre"] <- "Hand Gesture Classification using Deep learning and CWT images based on multi-channel surface EMG signals"
+y[112, "titre"]<- "Control Design for Position Synchronization in Central Converter Multi-Machine Actuators"
+y[140, "titre"] <- "Damage identification in complex structures using vibration data"
+y[150, "titre"]  <- "Optimal False Data Injection Attack on EV Chargers and DGs in Active Distribution Networks"
+y[168, "titre"]<- "Robust position-based visual servoing of industrial robots using feedforward kinematic approach based on integral quasi-super twisting algorithm"
+y[177, "titre"] <- "State-Space Modeling and Analysis of Distributed Secondary Control of DC Microgrids"
+ y[248, "titre"]<- "Efficient Design of a Multiband Microstrip Series-Fed Array Antenna for 5G Millimeter-Wave Applications"
+y[274, "titre"] <- "Emergency Braking Control Design for a Dual Cart- Trolley Overhead Crane"
+y[277, "titre"] <- " Low Complexity Decision Directed Adaptive Receiver for MIMO Communication Systems"
+y[293, "titre"] <- "A Machine-Learning Approach for Children’s Pain Assessments Using Prosodic and Spectral Acoustic Features"
+y[354, "titre"] <- "Flexible Circuit Designs of M-ary Digital Modulations and Demodulations"
+y[371, "titre"] <- "Area&power optimized modulo (2n ± 2p ± 1) multiplier"
+y[412, "titre"] <- "Optimal Robust Control Scheme for SSSC System Based on H∞ to Improve Power System Small Signal Stability"
+view(y)
+```
+
+## Sauvegarde du resultat sous forme de fichier xlsx
+
+```{r}
+library(writexl)
+write_xlsx(y, "~/b_organize.xlsx")
+```
